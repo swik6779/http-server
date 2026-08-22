@@ -43,7 +43,7 @@ func parseRequestLine(b []byte) (*RequestLine, int, error) {
 	}
 
 	startLine := b[:idx]
-	restOfMsg := b[idx+len(SEPARATOR):] //skipping the seperator
+	read := idx + len(SEPARATOR)
 
 	parts := bytes.Split(startLine, []byte(" "))
 	if len(parts) != 3 {
@@ -61,7 +61,7 @@ func parseRequestLine(b []byte) (*RequestLine, int, error) {
 		HttpVersion:   string(httpParts[1]),
 	}
 
-	return r1, 0, nil
+	return r1, read, nil
 }
 
 func (r *Request) parse(data []byte) (int, error) {
@@ -122,7 +122,7 @@ func RequestFromReader(reader io.Reader) (*Request, error) {
 			return nil, err
 		}
 
-		copy(buf, buf[readN:bufLen])
+		copy(buf, buf[readN:bufLen+n])
 		bufLen = bufLen + n - readN
 	}
 
