@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -14,24 +14,63 @@ import (
 
 const port = 42069
 
+func respond400() []byte {
+	return []byte(`<html>
+  <head>
+    <title>400 Bad Request</title>
+  </head>
+  <body>
+    <h1>Bad Request</h1>
+    <p>Client side request invalid.</p>
+  </body>
+</html>`)
+}
+
+func respond500() []byte {
+	return []byte(`<html>
+  <head>
+    <title>500 Internal Server Error</title>
+  </head>
+  <body>
+    <h1>Internal Server Error</h1>
+    <p>Server side error</p>
+  </body>
+</html>`)
+}
+
+func respond200() []byte {
+	return []byte(`<html>
+  <head>
+    <title>200 OK</title>
+  </head>
+  <body>
+    <h1>Success!</h1>
+    <p>Proper Request</p>
+  </body>
+</html>`)
+}
+
 func main() {
-	s, err := server.Serve(port, func(w io.Writer, req *request.Request) *server.HandlerError {
+	s, err := server.Serve(port, func(w *response.Writer, req *request.Request) {
+		h := response.GetDefaultHeaders(0)
+		body := respond200()
+		status := response.StatusOK
+
 		if req.RequestLine.RequestTarget == "/problemclient" {
-			return &server.HandlerError{
-				StatusCode: response.StatusBadRequest,
-				Message:    "Error on the client side\n",
-			}
+			body = respond400()
+			status = response.StatusBadRequest
+
 		} else if req.RequestLine.RequestTarget == "/problemserver" {
-			return &server.HandlerError{
-				StatusCode: response.StatusInternalServerError,
-				Message:    "Error on the server side\n",
-			}
-		} else {
-			return &server.HandlerError{
-				StatusCode: response.StatusOK,
-				Message:    "Success\n",
-			}
+			body = respond500()
+			status = response.StatusInternalServerError
+
 		}
+
+		h.Replace("Content-length", fmt.Sprintf("%d", len(body)))
+		h.Replace("Content-type", "text/html")
+		w.WriteStatusLine(status)
+		w.WriteHeaders(*h)
+		w.WriteBody(body)
 	})
 
 	if err != nil {
